@@ -1,0 +1,10 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.workshops.category.Trading Bot with AWS": {
+    "message": "Trading Bot with AWS",
+    "description": "The label for category Trading Bot with AWS in sidebar workshops"
+  }
+}

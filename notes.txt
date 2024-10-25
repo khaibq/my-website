@@ -1,0 +1,2 @@
+# Add docusaurus-search-local
+yarn add @easyops-cn/docusaurus-search-local

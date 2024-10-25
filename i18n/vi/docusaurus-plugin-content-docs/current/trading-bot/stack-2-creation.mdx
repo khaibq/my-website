@@ -1,0 +1,184 @@
+---
+sidebar_position: 6
+---
+
+# Stack #2: REST API Gateway
+:::info structure
+```bash
+auto-trading-bot
+├── auto_trading_bot_api
+│   ├── __init__.py
+│   └── auto_trading_bot_api_stack.py
+├── custom_auth_lambda_function
+│   └── customauthlambda.py
+```
+:::
+## Lambda Authorizer
+:::tip Authorizer function
+Authorizing only the sender from approved IP list.
+```py title="./custom_auth_lambda_function/customauthlambda.py"
+import os
+import boto3
+from botocore.exceptions import ClientError
+
+def lambda_handler(event, context):
+    print(event)
+
+    # Retrieve request parameters from the Lambda function input:
+    headers = event['headers']
+
+    # Parse the input for the parameter values
+    tmp = event['methodArn'].split(':')
+    apiGatewayArnTmp = tmp[5].split('/')
+    resource = '/'
+
+    if (apiGatewayArnTmp[3]):
+        resource += apiGatewayArnTmp[3]
+    ssm_name = os.environ['WEBHOOK_SSM_NAME']
+    region_name = os.environ['REGION_NAME']
+    approved_ip_list = get_ssm_parameter_list(ssm_name, region_name)
+    print(approved_ip_list)
+
+    # Perform authorization to return the Allow policy for correct parameters
+    # and the 'Unauthorized' error, otherwise.
+    if headers['X-Forwarded-For'] in approved_ip_list:
+        response = generateAllow('XForwardForAuthorized', event['methodArn'])
+        print('authorized')
+        return response
+    else:
+        print('unauthorized')
+        raise Exception('Unauthorized') # Return a 401 Unauthorized response
+
+# Get Parameter List for approved IP list
+def get_ssm_parameter_list(ssm_name, region):
+    # Create a SSM client
+    session = boto3.session.Session()
+    client = session.client(
+        service_name="ssm",
+        region_name=region
+    )
+    try:
+        get_ssm_params_response = client.get_parameter(Name=ssm_name)
+    except ClientError as e:
+        raise e
+    ssm_params_list = get_ssm_params_response["Parameter"]["Value"].split(",")
+    return ssm_params_list
+
+# Help function to generate IAM policy
+def generatePolicy(principalId, effect, resource):
+    authResponse = {}
+    authResponse['principalId'] = principalId
+    if (effect and resource):
+        policyDocument = {}
+        policyDocument['Version'] = '2012-10-17'
+        policyDocument['Statement'] = []
+        statementOne = {}
+        statementOne['Action'] = 'execute-api:Invoke'
+        statementOne['Effect'] = effect
+        statementOne['Resource'] = resource
+        policyDocument['Statement'] = [statementOne]
+        authResponse['policyDocument'] = policyDocument
+    return authResponse
+
+def generateAllow(principalId, resource):
+    return generatePolicy(principalId, 'Allow', resource)
+
+def generateDeny(principalId, resource):
+    return generatePolicy(principalId, 'Deny', resource)
+```
+:::
+## Lambda Authorizer - CDK Stack
+:::tip CDK Stack
+```py title="./auto_trading_bot_api/auto_trading_bot_api_stack.py"
+custom_auth_lambda = aws_lambda.Function(self, "CustomAuth",
+  function_name=props["custom_auth_function_name"],
+  description="Lambda function for custom authorization",
+  handler="customauthlambda.lambda_handler",
+  runtime=aws_lambda.Runtime.PYTHON_3_12,
+  code=aws_lambda.Code.from_asset("./custom_auth_lambda_function"),
+  timeout=Duration.seconds(29))
+
+# Add policy to retrieve SSM Parameter
+ssm_custom_auth_policy_statement = {
+    "Sid": "GetSSMParameterPolicy",
+    "Effect": "Allow",
+    "Action": ["ssm:GetParameter"],
+    "Resource": f"arn:aws:ssm:{Aws.REGION}:{Aws.ACCOUNT_ID}:parameter/{props["WEBHOOK_SSM_NAME"]}*"
+}
+custom_auth_lambda.add_to_role_policy(aws_iam.PolicyStatement.from_json(ssm_custom_auth_policy_statement))
+# Add environment variables to retrieve the approved IP list
+custom_auth_lambda.add_environment("WEBHOOK_SSM_NAME", props["WEBHOOK_SSM_NAME"])
+custom_auth_lambda.add_environment("REGION_NAME", props["REGION_NAME"])
+```
+:::
+## Lambda Main Function - CDK Stack
+:::tip CDK Stack
+```py title="./auto_trading_bot_api/auto_trading_bot_api_stack.py"
+bot_lambda_function = aws_lambda.DockerImageFunction(self, "AutoTradingBotLambda",
+  function_name=props['function_name'],
+  code=aws_lambda.DockerImageCode.from_ecr(props["ECR"]),
+  timeout=Duration.seconds(29)
+)
+bot_lambda_role = bot_lambda_function.role
+  secret_policy_statement = {
+    "Sid": "GetSecretValuePolicy",
+    "Effect": "Allow",
+    "Action": ["secretsmanager:GetSecretValue"],
+    "Resource": f"arn:aws:secretsmanager:{Aws.REGION}:{Aws.ACCOUNT_ID}:secret:{props["SECRET_NAME"]}*"
+  }
+  ssm_policy_statement = {
+    "Sid": "RetrieveSSMParameterPolicy",
+    "Effect": "Allow",
+    "Action": ["ssm:GetParameter"],
+    "Resource": f"arn:aws:ssm:{Aws.REGION}:{Aws.ACCOUNT_ID}:parameter/{props["MESSAGE_NAME"]}*"
+  }
+  bot_lambda_role.add_to_principal_policy(aws_iam.PolicyStatement.from_json(secret_policy_statement))
+  bot_lambda_role.add_to_principal_policy(aws_iam.PolicyStatement.from_json(ssm_policy_statement))
+
+  bot_lambda_function.add_environment("SECRET_NAME", props["SECRET_NAME"])
+  bot_lambda_function.add_environment("MESSAGE_NAME", props["MESSAGE_NAME"])
+  bot_lambda_function.add_environment("REGION_NAME", props["REGION_NAME"])
+```
+:::
+## REST API Gateway {#rest-api-gateway}
+:::tip CDK stack
+With Lambda main function proxy integrated and Lambda Authorizer.
+```py title="./auto_trading_bot_api/auto_trading_bot_api_stack.py"
+bot_rest_api = aws_apigateway.RestApi(self, "TradingBotRestApi",
+  cloud_watch_role=True,
+  cloud_watch_role_removal_policy=RemovalPolicy.DESTROY,
+  endpoint_types=[aws_apigateway.EndpointType.REGIONAL],
+  default_method_options=aws_apigateway.MethodOptions(
+  method_responses=[aws_apigateway.MethodResponse(status_code="200")]
+  )
+)
+rest_api_integration = aws_apigateway.LambdaIntegration(
+  handler=bot_lambda_function,
+  proxy=True,
+  timeout=Duration.seconds(29)
+)
+bot_rest_api_resource = bot_rest_api.root.add_resource("webhook")
+
+custom_auth = aws_apigateway.RequestAuthorizer(self, "TradingBotCustomAuth",
+  authorizer_name="TradingBotCustomAuthorizer",
+  handler=custom_auth_lambda,
+  identity_sources=[aws_apigateway.IdentitySource.header("X-Forwarded-For")]
+)
+bot_rest_api_resource.add_method("GET",
+  integration=rest_api_integration,
+  authorization_type=aws_apigateway.AuthorizationType.CUSTOM,
+  authorizer=custom_auth
+)
+bot_rest_api_resource.add_method("POST",
+  integration=rest_api_integration,
+  authorization_type=aws_apigateway.AuthorizationType.CUSTOM,
+  authorizer=custom_auth
+)
+
+CfnOutput(self, "OutputRestApi",
+  description="Trading Bot Rest API",
+  value=bot_rest_api.rest_api_id
+)
+```
+:::
+

@@ -1,0 +1,35 @@
+name: Deploy website to AWS S3
+
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build_deploy:
+    name: Build and Deploy My Personal Site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Build website
+        run: yarn build
+      - name: List Build directory
+        run: ls -R build
+      - name: Setup AWS CLI
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 # Modify this to your desired AWS region
+      - name: Deploy Build Files to AWS S3
+        run: |
+          aws s3 sync build s3://clean-equipment.com --delete
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.AWS_DISTRIBUTION_ID }} --paths '/*'
+          

@@ -1,0 +1,46 @@
+{
+  "link.title.Docs": {
+    "message": "Docs",
+    "description": "The title of the footer links column with title=Docs in the footer"
+  },
+  "link.title.Community": {
+    "message": "Community",
+    "description": "The title of the footer links column with title=Community in the footer"
+  },
+  "link.title.More": {
+    "message": "More",
+    "description": "The title of the footer links column with title=More in the footer"
+  },
+  "link.item.label.Workshop": {
+    "message": "Workshops",
+    "description": "The label of footer link with label=Workshop linking to /docs/intro-workshops"
+  },
+  "link.item.label.AWS Cheat Sheets": {
+    "message": "AWS Cheat Sheets",
+    "description": "The label of footer link with label=AWS Cheat Sheets linking to /docs/introduction"
+  },
+  "link.item.label.Code Practice": {
+    "message": "Code Practice",
+    "description": "The label of footer link with label=Code Practice linking to /docs/intro-practice"
+  },
+  "link.item.label.Linkedin": {
+    "message": "Linkedin",
+    "description": "The label of footer link with label=Linkedin linking to https://www.linkedin.com/in/khaibq/"
+  },
+  "link.item.label.Blog": {
+    "message": "Blog",
+    "description": "The label of footer link with label=Blog linking to /blog"
+  },
+  "link.item.label.Medium": {
+    "message": "Medium",
+    "description": "The label of footer link with label=Medium linking to https://medium.com/@khaibq"
+  },
+  "link.item.label.GitHub": {
+    "message": "GitHub",
+    "description": "The label of footer link with label=GitHub linking to https://github.com/khaibq"
+  },
+  "copyright": {
+    "message": "Copyright © 2024 Khai Bui. Built with Docusaurus.",
+    "description": "The footer copyright"
+  }
+}

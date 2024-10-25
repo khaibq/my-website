@@ -1,0 +1,64 @@
+---
+sidebar_position: 7
+---
+
+# Deploy, Test and Cleanup
+## Deployment
+- **CDK deployment from CLI Terminal.**
+```bash
+# CDK template output
+cdk synth --all
+
+# Deploy all stacks - Need to wait a couple minutes to let 1st stack complete with docker image deployed.
+cdk deploy --all
+```
+- Record the **REST API `URL output`** to test in the [**previous step**](./stack-2-creation#rest-api-gateway).
+
+![](./img/api-url-edit.png)
+
+- Fill the above **REST API URL** to **TradingView webhook** together with the **alert** prepared in [**Build related services for AWS**](./configurations#webhook).
+
+![](./img/tradingview-webhook-edit.jpg)
+
+## Testing
+### Post REST API URL
+```bash
+curl -X POST https://<YOUR_API_ID>.execute-api.<REGION_NAME>.amazonaws.com/prod/webhook \
+  -H 'content-type: application/json' \
+  -d '{"order_strategy": "Bollinger", "signal_time": "2024-09-26", "signal_price": "2600", "market_pair": "ETHUSD.P", "order_side": "buy", "order_size": "0.001"}'
+```
+- **And the result shown below:**
+
+    ![](./img/apigw-post-edit.png)
+
+- **From the exchange platform:**
+
+    ![](./img/dydx-platform.png)
+
+- **From [**Mintscan**](https://www.mintscan.io/) dYdX chain explorer:**
+    - **Transaction detail**
+    
+    ![](./img/transaction.png)
+    
+    - **Transaction message**
+    
+    ![](./img/transaction-message.png)
+
+- **From [Discord](https://discord.com/) message:**
+
+    ![](./img/discord-message.png)
+
+### GitHub commit and CodeBuild
+Whenever you update code and commit on **GitHub**, **CodeBuild** will process automatically and build logs look like below:
+
+![](./img/build-logs-1.png)
+
+![](./img/build-logs-2.png)
+
+## Cleanup
+- Manually delete **objects in project bucket**.
+- Manually delete **all images in ECR**.
+- CDK cleanup **all stacks** by **CLI** as below:
+```bash
+cdk destroy --all
+```

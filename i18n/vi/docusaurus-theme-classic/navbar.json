@@ -1,0 +1,30 @@
+{
+  "title": {
+    "message": "Khai Bui",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "Khai Bui Logo",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Workshop": {
+    "message": "Workshop",
+    "description": "Navbar item with label Workshop"
+  },
+  "item.label.AWS Cheat Sheets": {
+    "message": "Sổ tay AWS",
+    "description": "Navbar item with label AWS Cheat Sheets"
+  },
+  "item.label.Code Practice": {
+    "message": "Code Practice",
+    "description": "Navbar item with label Code Practice"
+  },
+  "item.label.Blog": {
+    "message": "Blog",
+    "description": "Navbar item with label Blog"
+  },
+  "item.label.Workshops": {
+    "message": "Workshops",
+    "description": "Navbar item with label Workshops"
+  }
+}
